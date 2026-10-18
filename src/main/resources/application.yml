@@ -1,0 +1,53 @@
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: hireflow-backend
+  config:
+    # Reads secrets from a file named ".env" in the project root (next to pom.xml). The file is optional.
+    import: optional:file:./.env[.properties]
+  datasource:
+    # Values come from .env (Supabase). The defaults after ":" are for a local PostgreSQL.
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/hireflow}
+    username: ${DB_USER:hireflow}
+    password: ${DB_PASSWORD:hireflow}
+    hikari:
+      maximum-pool-size: 5   # small on purpose: free Supabase allows only a few connections
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+
+app:
+  jwt:
+    # Must be at least 32 characters. Set JWT_SECRET in .env for real use.
+    secret: ${JWT_SECRET:hireflow-dev-secret-change-me-please-32chars-min}
+    expiration-minutes: 480
+  cors:
+    allowed-origin: ${CORS_ORIGIN:http://localhost:5173}
+  llm:
+      # Any OpenAI-compatible API. Defaults are for NVIDIA (free key from build.nvidia.com).
+      # AI analysis stays off until LLM_API_KEY and LLM_MODEL are set in .env.
+      base-url: ${LLM_BASE_URL:https://integrate.api.nvidia.com/v1}
+      api-key: ${LLM_API_KEY:}
+      model: ${LLM_MODEL:}
+  embed:
+    # Model that turns text into numbers for search by meaning. Search-by-meaning stays off until EMBED_MODEL is set.
+    # Uses the same base-url and key as above. Set EMBED_ASYMMETRIC=false for providers that are not NVIDIA (e.g. OpenAI).
+    model: ${EMBED_MODEL:}
+    asymmetric: ${EMBED_ASYMMETRIC:true}
+  storage:
+    dir: ${UPLOAD_DIR:uploads}        # keep your existing value here if it is different
+    # Deployed: CVs go to a private Supabase Storage bucket. Leave the two keys empty to use the local folder.
+    supabase-url: ${SUPABASE_URL:}
+    supabase-key: ${SUPABASE_SECRET_KEY:}
+    bucket: ${SUPABASE_BUCKET:resumes}
+  seed-demo: ${SEED_DEMO:true}        # false in production: no demo accounts or sample jobs are created
+
