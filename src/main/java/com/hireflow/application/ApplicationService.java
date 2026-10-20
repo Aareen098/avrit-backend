@@ -8,6 +8,8 @@ import com.hireflow.job.JobStatus;
 import com.hireflow.storage.FileStorageService;
 import com.hireflow.ai.AiScreeningService;
 import com.hireflow.search.SemanticSearchService;
+import com.hireflow.user.User;
+import com.hireflow.user.UserRepository;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -30,10 +32,12 @@ public class ApplicationService {
     private final ResumeAnalyzer analyzer;
     private final AiScreeningService screening;
     private final SemanticSearchService search;
+    private final UserRepository users;
 
     public ApplicationService(ApplicationRepository applications, JobRepository jobs,
                               FileStorageService storage, ResumeAnalyzer analyzer, AiScreeningService screening,
-                              SemanticSearchService search) {
+                              SemanticSearchService search, UserRepository users) {
+        this.users = users;
         this.screening = screening;
         this.search = search;
         this.applications = applications;
@@ -48,21 +52,44 @@ public class ApplicationService {
         if (name == null || name.trim().length() < 2) throw badRequest("Enter your full name");
         if (email == null || !EMAIL.matcher(email.trim()).matches()) throw badRequest("Enter a valid email");
 
-        Job job = jobs.findByIdAndStatus(jobId, JobStatus.OPEN)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "This job is no longer available"));
-
         String cleanEmail = email.trim().toLowerCase();
-        if (applications.existsByJob_IdAndEmailIgnoreCase(job.getId(), cleanEmail)) {
-            throw new ApiException(HttpStatus.CONFLICT, "You have already applied for this job");
-        }
+        Job job = openJobNotYetAppliedTo(jobId, cleanEmail);
 
         // Checked last, so a rejected application never leaves a file behind.
         String storedName = storage.saveResume(resume);
         String originalName = resume.getOriginalFilename() == null ? "resume" : resume.getOriginalFilename();
         if (originalName.length() > 200) originalName = originalName.substring(0, 200);
 
-        Application application = new Application(newReference(), job, name.trim(), cleanEmail,
-                blankToNull(phone), blankToNull(coverNote), originalName, storedName);
+        return create(job, name.trim(), cleanEmail, blankToNull(phone), blankToNull(coverNote), originalName, storedName);
+    }
+
+    // A logged-in candidate applying with the details and the ONE resume saved on their profile.
+    // The application points at the same stored file, so applying many times stores nothing new.
+    public ApplicationCreatedDto applyAsCandidate(String email, Long jobId, String coverNote) {
+        if (jobId == null) throw badRequest("Choose a job to apply for");
+        User user = users.findByEmail(email)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "User not found"));
+        String stored = user.getResumeStoredName();
+        if (stored == null || stored.isBlank()) throw badRequest("Upload your resume in your profile first");
+
+        Job job = openJobNotYetAppliedTo(jobId, user.getEmail());
+        return create(job, user.getName(), user.getEmail(), blankToNull(user.getPhone()), blankToNull(coverNote),
+                user.getResumeFileName(), stored);
+    }
+
+    private Job openJobNotYetAppliedTo(Long jobId, String cleanEmail) {
+        Job job = jobs.findByIdAndStatus(jobId, JobStatus.OPEN)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "This job is no longer available"));
+        if (applications.existsByJob_IdAndEmailIgnoreCase(job.getId(), cleanEmail)) {
+            throw new ApiException(HttpStatus.CONFLICT, "You have already applied for this job");
+        }
+        return job;
+    }
+
+    private ApplicationCreatedDto create(Job job, String name, String email, String phone, String coverNote,
+                                         String originalName, String storedName) {
+        Application application = new Application(newReference(), job, name, email, phone, coverNote,
+                originalName, storedName);
         analyzer.fill(application, storage.load(storedName));
         Application saved = applications.save(application);
         screening.evaluateLater(saved.getId());
@@ -115,6 +142,13 @@ public class ApplicationService {
         return applications.findByEmailIgnoreCaseOrderByAppliedAtDescIdDesc(email).stream()
                 .map(ApplicationStatusDto::from)
                 .toList();
+    }
+
+    // One of the candidate's own applications, with the job details. Matched by reference AND login email.
+    public ApplicationDetailDto detail(String email, String reference) {
+        return applications.findForStatus(reference.trim(), email)
+                .map(ApplicationDetailDto::from)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Application not found"));
     }
 
     private String newReference() {

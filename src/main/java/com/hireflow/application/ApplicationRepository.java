@@ -10,6 +10,9 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
 
     boolean existsByReference(String reference);
 
+    // True while any application still uses this CV file, so it must not be deleted.
+    boolean existsByResumeStoredName(String storedName);
+
     boolean existsByJob_IdAndEmailIgnoreCase(Long jobId, String email);
 
     // Exact query for the status check: reference and email must both match, ignoring upper/lower case.

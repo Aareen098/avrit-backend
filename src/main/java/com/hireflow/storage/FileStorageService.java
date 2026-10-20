@@ -117,6 +117,25 @@ public class FileStorageService {
         return new PathResource(file);
     }
 
+    // Removes a saved resume. Never throws: a file that cannot be deleted is only logged.
+    public void delete(String storedName) {
+        if (storedName == null || !STORED_NAME.matcher(storedName).matches()) return;
+        try {
+            if (remote()) {
+                HttpRequest request = authorized(objectUrl("object/" + bucket + "/" + storedName)).DELETE().build();
+                HttpResponse<String> response = send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() / 100 != 2 && response.statusCode() != 404) {
+                    log.warn("Supabase Storage answered {} while deleting a resume", response.statusCode());
+                }
+            } else {
+                Path file = root.resolve(storedName).normalize();
+                if (file.startsWith(root)) Files.deleteIfExists(file);
+            }
+        } catch (IOException e) {
+            log.warn("Could not delete resume {}: {}", storedName, e.getMessage());
+        }
+    }
+
     // ---- Supabase Storage (REST) ----
 
     private void upload(String storedName, byte[] bytes, String contentType) throws IOException {
