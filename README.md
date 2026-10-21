@@ -2,8 +2,8 @@
 
 Spring Boot REST API for a multi-company ATS with AI CV screening and semantic search (RAG).
 
-**Live app:** https://hireflow-frontend-theta.vercel.app/
-**Frontend repo:** https://github.com/Aareen098/hireflow-frontend
+**Live app:** https://www.avrit.co.in/
+**Frontend repo:** https://github.com/Aareen098/avrit-frontend
 
 ## Architecture
 ```mermaid
@@ -39,4 +39,9 @@ Java 21, Spring Boot 3.5, Spring Security, JPA/Hibernate, PostgreSQL (Supabase) 
 | `SEED_DEMO` | `true` creates demo accounts and sample jobs |
 
 ## Demo logins (sample company "Acme")
-`admin@hireflow.com`, `recruiter@hireflow.com`, `manager@hireflow.com`, `candidate@hireflow.com`, all with password `password123`.
+`admin@avrit.com`, `recruiter@avrit.com`, `manager@avrit.com`, `candidate@avrit.com`, all with password `password123`.
+
+## Authors
+```
+Simran Kaur, Aareen Anand
+```
