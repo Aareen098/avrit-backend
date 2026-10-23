@@ -83,6 +83,18 @@ public class Job {
     public String getType() { return type; }
     public String getDescription() { return description; }
     public JobStatus getStatus() { return status; }
+
+    public void update(String title, String department, String location, String type,
+                       String description, List<String> skills) {
+        this.title = title;
+        this.department = department;
+        this.location = location;
+        this.type = type;
+        this.description = description;
+        this.skills.clear();
+        this.skills.addAll(skills);
+    }
+    public void setStatus(JobStatus status) { this.status = status; }
     public List<String> getSkills() { return skills; }
     public LocalDate getCreatedAt() { return createdAt; }
     public Company getCompany() { return company; }

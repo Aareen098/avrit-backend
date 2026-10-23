@@ -30,6 +30,17 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     // Applications with a CV file whose text has not been read yet - used once at startup.
     List<Application> findByResumeTextIsNullAndResumeStoredNameNot(String storedName);
 
+    long countByJob_Id(Long jobId);
+
+    // Still at APPLIED and no interview scheduled: nobody has responded to these yet.
+    @Query("select a from Application a where a.job.id = :jobId "
+            + "and a.stage = com.hireflow.application.ApplicationStage.APPLIED "
+            + "and not exists (select i.id from Interview i where i.application = a)")
+    List<Application> findWithoutResponse(@Param("jobId") Long jobId);
+
+    // Applications that were closed automatically with their job (used when the job is reopened).
+    List<Application> findByJob_IdAndStageAndRejectionReason(Long jobId, ApplicationStage stage, String reason);
+
     // Rows of [jobId, number of applications] - used for the "applicants" column on the Jobs page.
     @Query("select a.job.id, count(a) from Application a where a.job.company.id = :companyId group by a.job.id")
     List<Object[]> countPerJob(@Param("companyId") Long companyId);

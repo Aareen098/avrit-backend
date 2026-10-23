@@ -104,6 +104,7 @@ public class User {
         this.resumeStoredName = storedName;
     }
 
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public void setName(String name) { this.name = name; }
     public void setRole(Role role) { this.role = role; }
 }

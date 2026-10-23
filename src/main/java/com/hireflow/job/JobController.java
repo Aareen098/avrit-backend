@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 
 // Staff endpoints. A valid token is required (see SecurityConfig); @PreAuthorize adds the role rule.
 @RestController
@@ -35,5 +38,19 @@ public class JobController {
     @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
     public JobDto create(@Valid @RequestBody JobRequest req) {
         return service.create(req);
+    }
+
+    // PATCH /api/jobs/{id}/status - Admin and Recruiter only. Body: { "status": "CLOSED" }
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public JobDto setStatus(@PathVariable Long id, @Valid @RequestBody JobStatusRequest req) {
+        return service.setStatus(id, req.status());
+    }
+
+    // PUT /api/jobs/{id} - Admin and Recruiter only. Edits the details, never the status.
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RECRUITER')")
+    public JobDto update(@PathVariable Long id, @Valid @RequestBody JobUpdateRequest req) {
+        return service.update(id, req);
     }
 }

@@ -22,6 +22,9 @@ import java.util.List;
 @Table(name = "applications")
 public class Application {
 
+    // Reason stored on applications that were closed automatically because their job closed.
+    public static final String JOB_CLOSED_REASON = "Job closed";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -146,6 +149,9 @@ public class Application {
         this.aiReasons = new ArrayList<>(reasons);
         this.aiMatched = new ArrayList<>(matched);
         this.aiMissing = new ArrayList<>(missing);
+    }
+    public boolean closedWithJob() {
+        return stage == ApplicationStage.REJECTED && JOB_CLOSED_REASON.equals(rejectionReason);
     }
     public void setStage(ApplicationStage stage) { this.stage = stage; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }

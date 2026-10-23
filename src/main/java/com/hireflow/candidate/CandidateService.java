@@ -11,6 +11,8 @@ import com.hireflow.job.JobStatus;
 import com.hireflow.storage.FileStorageService;
 import com.hireflow.security.Tenant;
 import com.hireflow.ai.AiScreeningService;
+import com.hireflow.mail.EmailService;
+import com.hireflow.mail.EmailTemplates;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -26,9 +28,12 @@ public class CandidateService {
     private final JobRepository jobs;
     private final FileStorageService storage;
     private final AiScreeningService screening;
+    private final EmailService emails;
 
     public CandidateService(ApplicationRepository applications, ApplicationService applicationService,
-                            JobRepository jobs, FileStorageService storage, AiScreeningService screening) {
+                            JobRepository jobs, FileStorageService storage, AiScreeningService screening,
+                            EmailService emails) {
+        this.emails = emails;
         this.screening = screening;
         this.applications = applications;
         this.applicationService = applicationService;
@@ -60,7 +65,12 @@ public class CandidateService {
             a.setRejectionReason(null);
             a.setRejectionNote(null);
         }
+        boolean newlyRejected = req.stage() == ApplicationStage.REJECTED && a.getStage() != ApplicationStage.REJECTED;
         a.setStage(req.stage());
+        if (newlyRejected) {
+            emails.send(a.getEmail(), EmailTemplates.rejected(a.getName(), a.getJob().getTitle(),
+                    a.getJob().getCompany().getName()));
+        }
         return toDto(a, false);
     }
 
