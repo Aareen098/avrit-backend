@@ -12,6 +12,7 @@ import com.hireflow.user.User;
 import com.hireflow.user.UserDto;
 import com.hireflow.user.UserRepository;
 import java.time.Duration;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,11 +30,12 @@ public class AuthService {
     private final PasswordTokenService tokens;
     private final EmailService emails;
     private final RateLimiter limiter;
+    private final GoogleAuthService google;
     private final String frontendUrl;
 
     public AuthService(UserRepository users, PasswordEncoder encoder, JwtService jwt, CompanyService companies,
                        PasswordTokenService tokens, EmailService emails, RateLimiter limiter,
-                       @Value("${app.cors.allowed-origin}") String frontendUrl) {
+                       GoogleAuthService google, @Value("${app.cors.allowed-origin}") String frontendUrl) {
         this.users = users;
         this.encoder = encoder;
         this.jwt = jwt;
@@ -41,6 +43,7 @@ public class AuthService {
         this.tokens = tokens;
         this.emails = emails;
         this.limiter = limiter;
+        this.google = google;
         this.frontendUrl = frontendUrl.replaceAll("/+$", "");
     }
 
@@ -71,6 +74,31 @@ public class AuthService {
         User user = users.findByEmail(email)
                 .filter(u -> encoder.matches(req.password(), u.getPasswordHash()))
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
+        return toResponse(user);
+    }
+
+    // "Continue with Google". Google has proved who owns the email, so:
+    //  - a returning Google user is found by their Google id;
+    //  - an existing account with the same email is linked on first use, whatever its role. Its old password is
+    //    replaced by a random one, because signup does not verify emails: someone else may have created that account
+    //    with a password they know. The real owner can sign in with Google, or use "Forgot password";
+    //  - a new email becomes a CANDIDATE account. Companies are never created this way.
+    @Transactional
+    public AuthResponse googleLogin(String credential) {
+        GoogleAuthService.GoogleUser g = google.verify(credential);
+        User user = users.findByGoogleSub(g.sub()).orElse(null);
+        if (user == null) {
+            user = users.findByEmail(g.email()).orElse(null);
+            if (user == null) {
+                user = new User(g.name(), g.email(), encoder.encode(UUID.randomUUID().toString()), Role.CANDIDATE);
+            } else if (user.getGoogleSub() != null) {
+                throw new ApiException(HttpStatus.UNAUTHORIZED, "This email is linked to a different Google account");
+            } else {
+                user.setPasswordHash(encoder.encode(UUID.randomUUID().toString()));
+            }
+            user.setGoogleSub(g.sub());
+            user = users.save(user);
+        }
         return toResponse(user);
     }
 

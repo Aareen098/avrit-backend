@@ -51,6 +51,10 @@ public class User {
     private String github;
     private String portfolio;
 
+    // Google's id for this person, set the first time they use "Continue with Google". Null for password-only accounts.
+    @Column(unique = true)
+    private String googleSub;
+
     // The ONE resume on the profile. Applications keep pointing at the file they applied with.
     private String resumeFileName;
     private String resumeStoredName;
@@ -77,6 +81,8 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public Role getRole() { return role; }
     public Company getCompany() { return company; }
+    public String getGoogleSub() { return googleSub; }
+    public void setGoogleSub(String googleSub) { this.googleSub = googleSub; }
 
     public String getPhone() { return phone; }
     public String getLocation() { return location; }

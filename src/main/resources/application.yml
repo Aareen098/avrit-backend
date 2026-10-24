@@ -36,6 +36,9 @@ app:
     api-key: ${BREVO_API_KEY:}
     from-email: ${MAIL_FROM:}
     from-name: ${MAIL_FROM_NAME:Avrit}
+  google:
+    # "Web application" OAuth client ID from Google Cloud. Sign in with Google stays off until it is set.
+    client-id: ${GOOGLE_CLIENT_ID:}
   cors:
     allowed-origin: ${CORS_ORIGIN:http://localhost:5173}
   llm:

@@ -32,6 +32,12 @@ public class AuthController {
         return auth.registerCompany(req);
     }
 
+    // POST /api/auth/google  { credential } - the ID token from Google's button; answers like login
+    @PostMapping("/google")
+    public AuthResponse google(@Valid @RequestBody GoogleLoginRequest req) {
+        return auth.googleLogin(req.credential());
+    }
+
     // POST /api/auth/forgot-password  { email } - always 204, whether or not the email has an account
     @PostMapping("/forgot-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
