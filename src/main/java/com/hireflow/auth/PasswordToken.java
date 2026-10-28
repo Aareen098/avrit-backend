@@ -43,4 +43,5 @@ public class PasswordToken {
 
     public User getUser() { return user; }
     public Instant getExpiresAt() { return expiresAt; }
+    public String getTokenHash() { return tokenHash; }
 }
