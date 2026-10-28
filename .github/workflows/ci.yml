@@ -15,8 +15,8 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
-      - name: Build the jar
-        run: mvn -B -ntp -DskipTests package
+      - name: Run tests and build the jar
+        run: mvn -B -ntp verify
 
   docker:
     runs-on: ubuntu-latest
