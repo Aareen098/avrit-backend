@@ -22,6 +22,14 @@ public final class EmailTemplates {
                 "If you did not ask for this, you can ignore this email. Your password stays the same."));
     }
 
+    public static Mail verifyEmail(String link) {
+        return new Mail("Verify your email for Avrit", page(
+                "Verify your email",
+                "<p>Welcome to Avrit! Please confirm this is your email address. The link works for 24 hours.</p>",
+                "Verify my email", link,
+                "If you did not create an account, you can ignore this email."));
+    }
+
     public static Mail invite(String company, String role, String link) {
         return new Mail("You are invited to join " + company + " on Avrit", page(
                 "You are invited",

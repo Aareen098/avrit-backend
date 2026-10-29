@@ -4,6 +4,7 @@ import com.hireflow.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.JwtException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import javax.crypto.SecretKey;
@@ -39,5 +40,24 @@ public class JwtService {
     // Throws JwtException if the token is invalid or expired.
     public Claims parse(String token) {
         return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+    }
+
+    // A 24-hour link token for "verify my email". It has no role, so it can never be used to log in.
+    public String generateEmailToken(String email) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(email)
+                .claim("purpose", "verify-email")
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + 24 * 60 * 60 * 1000L))
+                .signWith(key)
+                .compact();
+    }
+
+    // Returns the email inside a verification token. A normal login token is refused.
+    public String parseEmailToken(String token) {
+        Claims claims = parse(token);
+        if (!"verify-email".equals(claims.get("purpose", String.class))) throw new JwtException("Not an email token");
+        return claims.getSubject();
     }
 }

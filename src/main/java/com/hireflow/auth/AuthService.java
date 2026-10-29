@@ -11,6 +11,7 @@ import com.hireflow.user.Role;
 import com.hireflow.user.User;
 import com.hireflow.user.UserDto;
 import com.hireflow.user.UserRepository;
+import io.jsonwebtoken.JwtException;
 import java.time.Duration;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,7 +66,10 @@ public class AuthService {
         if (users.existsByEmail(email)) {
             throw new ApiException(HttpStatus.CONFLICT, "An account with this email already exists");
         }
-        User user = users.save(new User(req.name().trim(), email, encoder.encode(req.password()), Role.CANDIDATE));
+        User user = new User(req.name().trim(), email, encoder.encode(req.password()), Role.CANDIDATE);
+        user.requireEmailVerification();
+        user = users.save(user);
+        sendVerification(user);
         return toResponse(user);
     }
 
@@ -95,6 +99,7 @@ public class AuthService {
                 throw new ApiException(HttpStatus.UNAUTHORIZED, "This email is linked to a different Google account");
             } else {
                 user.setPasswordHash(encoder.encode(UUID.randomUUID().toString()));
+                user.markEmailVerified();   // Google has proved the email
             }
             user.setGoogleSub(g.sub());
             user = users.save(user);
@@ -118,6 +123,32 @@ public class AuthService {
     public void resetPassword(String token, String newPassword) {
         User user = tokens.consume(token);
         user.setPasswordHash(encoder.encode(newPassword));
+        user.markEmailVerified();
+    }
+
+    private void sendVerification(User user) {
+        String link = frontendUrl + "/verify-email?token=" + jwt.generateEmailToken(user.getEmail());
+        emails.send(user.getEmail(), EmailTemplates.verifyEmail(link));
+    }
+
+    @Transactional
+    public void verifyEmail(String token) {
+        ApiException bad = new ApiException(HttpStatus.BAD_REQUEST,
+                "This link is invalid or has expired. Please request a new one.");
+        String email;
+        try {
+            email = jwt.parseEmailToken(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw bad;
+        }
+        users.findByEmail(email).orElseThrow(() -> bad).markEmailVerified();
+    }
+
+    // Always finishes quietly. At most 3 emails per address every 15 minutes. Verified accounts get nothing.
+    public void resendVerification(String rawEmail) {
+        String email = rawEmail.trim().toLowerCase();
+        if (!limiter.allow("verify:" + email, 3, Duration.ofMinutes(15))) return;
+        users.findByEmail(email).filter(u -> !u.isEmailVerified()).ifPresent(this::sendVerification);
     }
 
     private AuthResponse toResponse(User user) {

@@ -31,10 +31,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwtService.parse(header.substring(7));
                 String role = claims.get("role", String.class);
-                var auth = new UsernamePasswordAuthenticationToken(
-                        claims.getSubject(), null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
-                if (claims.get("companyId") instanceof Number companyId) auth.setDetails(companyId.longValue());
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                if (role != null) {   // email-link tokens have no role and must never log anyone in
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            claims.getSubject(), null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    if (claims.get("companyId") instanceof Number companyId) auth.setDetails(companyId.longValue());
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             } catch (JwtException | IllegalArgumentException e) {
                 // Bad or expired token: stay logged out. Protected URLs will answer 401.
             }

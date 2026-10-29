@@ -55,6 +55,9 @@ public class User {
     @Column(unique = true)
     private String googleSub;
 
+    // null = old account (counts as verified). false = signed up with a password and has not clicked the email link yet.
+    private Boolean emailVerified;
+
     // The ONE resume on the profile. Applications keep pointing at the file they applied with.
     private String resumeFileName;
     private String resumeStoredName;
@@ -83,6 +86,9 @@ public class User {
     public Company getCompany() { return company; }
     public String getGoogleSub() { return googleSub; }
     public void setGoogleSub(String googleSub) { this.googleSub = googleSub; }
+    public boolean isEmailVerified() { return !Boolean.FALSE.equals(emailVerified); }
+    public void requireEmailVerification() { this.emailVerified = false; }
+    public void markEmailVerified() { this.emailVerified = true; }
 
     public String getPhone() { return phone; }
     public String getLocation() { return location; }

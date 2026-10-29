@@ -57,4 +57,18 @@ public class AuthController {
     public AuthResponse login(@Valid @RequestBody LoginRequest req) {
         return auth.login(req);
     }
+
+    // POST /api/auth/verify-email  { token } - 204, or 400 if the link is invalid or expired
+    @PostMapping("/verify-email")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void verifyEmail(@Valid @RequestBody VerifyEmailRequest req) {
+        auth.verifyEmail(req.token());
+    }
+
+    // POST /api/auth/resend-verification  { email } - always 204
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendVerification(@Valid @RequestBody ForgotPasswordRequest req) {
+        auth.resendVerification(req.email());
+    }
 }

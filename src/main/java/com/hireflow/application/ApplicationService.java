@@ -69,6 +69,9 @@ public class ApplicationService {
         if (jobId == null) throw badRequest("Choose a job to apply for");
         User user = users.findByEmail(email)
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "User not found"));
+        if (!user.isEmailVerified()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Please verify your email before applying. Check your inbox for the link.");
+        }
         String stored = user.getResumeStoredName();
         if (stored == null || stored.isBlank()) throw badRequest("Upload your resume in your profile first");
 
