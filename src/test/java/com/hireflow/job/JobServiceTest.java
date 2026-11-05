@@ -18,6 +18,7 @@ import com.hireflow.common.ApiException;
 import com.hireflow.company.Company;
 import com.hireflow.company.CompanyRepository;
 import com.hireflow.mail.EmailService;
+import com.hireflow.notification.NotificationService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -37,13 +38,14 @@ class JobServiceTest {
     @Mock ApplicationRepository applications;
     @Mock CompanyRepository companies;
     @Mock EmailService emails;
+    @Mock NotificationService notifications;
 
     private JobService service;
     private Job job;
 
     @BeforeEach
     void setUp() {
-        service = new JobService(jobs, applications, companies, emails);
+        service = new JobService(jobs, applications, companies, emails, notifications);
         Company acme = new Company("Acme", "acme", null, null, null, null);
         job = new Job(acme, "Developer", "Engineering", "Remote", "Full-time", "desc", JobStatus.OPEN, List.of("Java"));
         loginAsCompany(1L);
@@ -115,6 +117,7 @@ class JobServiceTest {
         assertThat(inProgress.getStage()).isEqualTo(ApplicationStage.SCREENING);
         verify(emails, times(1)).send(eq("new@x.com"), any());
         verify(emails, times(1)).send(anyString(), any());
+        verify(notifications).toEmail(eq("new@x.com"), eq("JOB_CLOSED"), any(), any(), any());
     }
 
     @Test

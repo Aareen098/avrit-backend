@@ -9,6 +9,7 @@ import com.hireflow.company.CompanyRepository;
 import com.hireflow.security.Tenant;
 import com.hireflow.mail.EmailService;
 import com.hireflow.mail.EmailTemplates;
+import com.hireflow.notification.NotificationService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,9 +24,11 @@ public class JobService {
     private final ApplicationRepository applications;
     private final CompanyRepository companies;
     private final EmailService emails;
+    private final NotificationService notifications;
 
     public JobService(JobRepository jobs, ApplicationRepository applications, CompanyRepository companies,
-                      EmailService emails) {
+                      EmailService emails, NotificationService notifications) {
+        this.notifications = notifications;
         this.emails = emails;
         this.jobs = jobs;
         this.applications = applications;
@@ -91,6 +94,9 @@ public class JobService {
                     a.setRejectionNote(null);
                     emails.send(a.getEmail(), EmailTemplates.jobClosed(a.getName(), job.getTitle(),
                             job.getCompany().getName()));
+                    notifications.toEmail(a.getEmail(), "JOB_CLOSED", "This job has closed",
+                            job.getTitle() + " was closed before they could respond.",
+                            "/portal/applications/" + a.getReference());
                 }
             } else if (status == JobStatus.OPEN) {
                 for (Application a : applications.findByJob_IdAndStageAndRejectionReason(

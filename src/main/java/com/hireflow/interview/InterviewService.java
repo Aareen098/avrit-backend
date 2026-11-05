@@ -7,6 +7,7 @@ import com.hireflow.common.ApiException;
 import com.hireflow.security.Tenant;
 import com.hireflow.mail.EmailService;
 import com.hireflow.mail.EmailTemplates;
+import com.hireflow.notification.NotificationService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -22,8 +23,11 @@ public class InterviewService {
     private final InterviewRepository interviews;
     private final ApplicationRepository applications;
     private final EmailService emails;
+    private final NotificationService notifications;
 
-    public InterviewService(InterviewRepository interviews, ApplicationRepository applications, EmailService emails) {
+    public InterviewService(InterviewRepository interviews, ApplicationRepository applications, EmailService emails,
+                            NotificationService notifications) {
+        this.notifications = notifications;
         this.interviews = interviews;
         this.applications = applications;
         this.emails = emails;
@@ -61,6 +65,9 @@ public class InterviewService {
                 req.type().trim(), req.interviewer().trim(), notes));
         emails.send(a.getEmail(), EmailTemplates.interview(a.getName(), a.getJob().getTitle(),
                 a.getJob().getCompany().getName(), req.date(), req.time(), req.type().trim(), req.interviewer().trim()));
+        notifications.toEmail(a.getEmail(), "INTERVIEW", "Interview scheduled",
+                a.getJob().getTitle() + " at " + a.getJob().getCompany().getName() + " on " + req.date() + " at " + req.time(),
+                "/portal/applications/" + a.getReference());
         return InterviewDto.from(saved);
     }
 }

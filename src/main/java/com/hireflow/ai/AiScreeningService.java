@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hireflow.application.Application;
 import com.hireflow.application.ApplicationRepository;
 import com.hireflow.common.ApiException;
+import com.hireflow.notification.NotificationService;
 import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,8 +40,10 @@ public class AiScreeningService {
     private final ObjectMapper mapper = new ObjectMapper();
     private final LlmClient llm;
     private final ApplicationRepository applications;
+    private final NotificationService notifications;
 
-    public AiScreeningService(LlmClient llm, ApplicationRepository applications) {
+    public AiScreeningService(LlmClient llm, ApplicationRepository applications, NotificationService notifications) {
+        this.notifications = notifications;
         this.llm = llm;
         this.applications = applications;
     }
@@ -85,7 +88,13 @@ public class AiScreeningService {
         if (!summary.isEmpty() && (fresh.getSummary() == null || fresh.getSummary().isBlank())) {
             fresh.setSummary(summary.length() > 600 ? summary.substring(0, 600) : summary);
         }
-        return applications.save(fresh);
+        Application saved = applications.save(fresh);
+        var company = saved.getJob().getCompany();
+        if (score >= company.getShortlistThreshold()) {
+            notifications.toCompanyStaff(company.getId(), "AI_MATCH", "Strong match: " + saved.getName(),
+                    score + "% match for " + saved.getJob().getTitle(), "/candidates/" + saved.getId());
+        }
+        return saved;
     }
 
     // ---- helpers ----

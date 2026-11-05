@@ -10,6 +10,7 @@ import com.hireflow.ai.AiScreeningService;
 import com.hireflow.search.SemanticSearchService;
 import com.hireflow.user.User;
 import com.hireflow.user.UserRepository;
+import com.hireflow.notification.NotificationService;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -33,10 +34,11 @@ public class ApplicationService {
     private final AiScreeningService screening;
     private final SemanticSearchService search;
     private final UserRepository users;
+    private final NotificationService notifications;
 
     public ApplicationService(ApplicationRepository applications, JobRepository jobs,
                               FileStorageService storage, ResumeAnalyzer analyzer, AiScreeningService screening,
-                              SemanticSearchService search, UserRepository users) {
+                              SemanticSearchService search, UserRepository users, NotificationService notifications) {
         this.users = users;
         this.screening = screening;
         this.search = search;
@@ -44,6 +46,7 @@ public class ApplicationService {
         this.jobs = jobs;
         this.storage = storage;
         this.analyzer = analyzer;
+        this.notifications = notifications;
     }
 
     public ApplicationCreatedDto apply(Long jobId, String name, String email, String phone,
@@ -95,6 +98,8 @@ public class ApplicationService {
                 originalName, storedName);
         analyzer.fill(application, storage.load(storedName));
         Application saved = applications.save(application);
+        notifications.toCompanyStaff(job.getCompany().getId(), "NEW_APPLICATION", "New application",
+                name + " applied for " + job.getTitle(), "/candidates/" + saved.getId());
         screening.evaluateLater(saved.getId());
         search.indexLater(saved.getId());
         return new ApplicationCreatedDto(saved.getReference());

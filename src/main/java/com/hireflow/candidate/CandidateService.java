@@ -13,6 +13,7 @@ import com.hireflow.security.Tenant;
 import com.hireflow.ai.AiScreeningService;
 import com.hireflow.mail.EmailService;
 import com.hireflow.mail.EmailTemplates;
+import com.hireflow.notification.NotificationService;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -29,10 +30,12 @@ public class CandidateService {
     private final FileStorageService storage;
     private final AiScreeningService screening;
     private final EmailService emails;
+    private final NotificationService notifications;
 
     public CandidateService(ApplicationRepository applications, ApplicationService applicationService,
                             JobRepository jobs, FileStorageService storage, AiScreeningService screening,
-                            EmailService emails) {
+                            EmailService emails, NotificationService notifications) {
+        this.notifications = notifications;
         this.emails = emails;
         this.screening = screening;
         this.applications = applications;
@@ -66,12 +69,30 @@ public class CandidateService {
             a.setRejectionNote(null);
         }
         boolean newlyRejected = req.stage() == ApplicationStage.REJECTED && a.getStage() != ApplicationStage.REJECTED;
+        ApplicationStage before = a.getStage();
         a.setStage(req.stage());
+        if (before != req.stage()) notifyCandidate(a);
         if (newlyRejected) {
             emails.send(a.getEmail(), EmailTemplates.rejected(a.getName(), a.getJob().getTitle(),
                     a.getJob().getCompany().getName()));
         }
         return toDto(a, false);
+    }
+
+    // The candidate's bell: one short message for each stage they are moved to.
+    private void notifyCandidate(Application a) {
+        String job = a.getJob().getTitle() + " at " + a.getJob().getCompany().getName();
+        String title = switch (a.getStage()) {
+            case SCREENING -> "Your application is being reviewed";
+            case INTERVIEW -> "You are moving to the interview stage";
+            case OFFER -> "You have an offer!";
+            case HIRED -> "Congratulations, you are hired!";
+            case REJECTED -> "Update on your application";
+            default -> null;
+        };
+        if (title != null) {
+            notifications.toEmail(a.getEmail(), "APPLICATION_STAGE", title, job, "/portal/applications/" + a.getReference());
+        }
     }
 
     // Add Candidate dialog. The job is chosen by jobId, or by its title (what the current form sends).
