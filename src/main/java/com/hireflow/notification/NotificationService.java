@@ -4,6 +4,7 @@ import com.hireflow.common.ApiException;
 import com.hireflow.user.Role;
 import com.hireflow.user.User;
 import com.hireflow.user.UserRepository;
+import com.hireflow.platform.PlatformAccess;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -40,10 +41,12 @@ public class NotificationService {
     }
 
     // The hiring team that should see new work: the company's Admins and Recruiters.
+// The platform owner is never included: the owner sees usage and billing only, never a company's hiring activity.
     @Transactional
     public void toCompanyStaff(Long companyId, String kind, String title, String body, String link) {
         List<Notification> list = users.findByCompany_IdOrderByIdAsc(companyId).stream()
                 .filter(u -> u.getRole() == Role.ADMIN || u.getRole() == Role.RECRUITER)
+                .filter(u -> !PlatformAccess.isMasterEmail(u.getEmail()))
                 .map(u -> new Notification(u.getId(), kind, title, body, link))
                 .toList();
         notifications.saveAll(list);

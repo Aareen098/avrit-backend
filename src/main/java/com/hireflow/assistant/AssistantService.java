@@ -8,6 +8,7 @@ import com.hireflow.application.ApplicationStage;
 import com.hireflow.candidate.CandidateService;
 import com.hireflow.search.SemanticSearchService;
 import com.hireflow.security.Tenant;
+import com.hireflow.usage.UsageKind;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -170,7 +171,7 @@ public class AssistantService {
     // ---- step 2: generate ----
 
     private ChatResponse generate(String message, List<Application> all, Retrieval found) {
-        JsonNode result = llm.chatJson(SYSTEM, prompt(message, all, found));
+        JsonNode result = llm.chatJson(SYSTEM, prompt(message, all, found), Tenant.companyId(), UsageKind.LLM_ASSISTANT);
         String answer = result.path("answer").asText("").trim();
         if (answer.isEmpty()) throw new IllegalStateException("The AI sent an empty answer");
 

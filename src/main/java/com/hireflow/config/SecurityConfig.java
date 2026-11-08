@@ -2,6 +2,8 @@ package com.hireflow.config;
 
 import com.hireflow.security.JwtAuthFilter;
 import com.hireflow.security.JwtService;
+import com.hireflow.platform.SuspendedCompanies;
+import com.hireflow.platform.SuspendedFilter;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -28,7 +30,7 @@ public class SecurityConfig {
     // The app runs under /api (see application.yml), so these paths are written without it:
     // "/auth/**" really means "/api/auth/**".
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, SuspendedCompanies suspended) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
@@ -38,7 +40,8 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**", "/public/**", "/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new SuspendedFilter(suspended), JwtAuthFilter.class);
         return http.build();
     }
 

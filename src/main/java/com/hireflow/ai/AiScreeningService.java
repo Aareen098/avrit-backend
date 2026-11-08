@@ -7,6 +7,7 @@ import com.hireflow.application.Application;
 import com.hireflow.application.ApplicationRepository;
 import com.hireflow.common.ApiException;
 import com.hireflow.notification.NotificationService;
+import com.hireflow.usage.UsageKind;
 import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,7 +74,7 @@ public class AiScreeningService {
 
         JsonNode result;
         try {
-            result = parse(llm.chat(SYSTEM, prompt(a)));
+            result = parse(llm.chat(SYSTEM, prompt(a), a.getJob().getCompany().getId(), UsageKind.LLM_SCREENING));
         } catch (IllegalStateException e) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, e.getMessage());
         }
@@ -120,7 +121,11 @@ public class AiScreeningService {
             JsonNode node = mapper.readTree(text.substring(start, end + 1));
             if (!node.path("score").isNumber()) throw new IllegalStateException("The AI answer had no score");
             return node;
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException | IllegalStateException e) {
+            // Temporary: shows why the answer could not be read. Remove once it works (it can contain CV words).
+            log.warn("AI answer unreadable: {} | length {} | start: {} | end: {}", e.getMessage(), text.length(),
+                    text.length() > 200 ? text.substring(0, 200) : text,
+                    text.length() > 200 ? text.substring(text.length() - 200) : "");
             throw new IllegalStateException("The AI answer could not be read");
         }
     }

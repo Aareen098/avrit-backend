@@ -1,6 +1,8 @@
 package com.hireflow.user;
 
 import com.hireflow.company.Company;
+import com.hireflow.platform.PlatformAccess;
+//import java.time.Instant;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -58,6 +60,8 @@ public class User {
     // null = old account (counts as verified). false = signed up with a password and has not clicked the email link yet.
     private Boolean emailVerified;
 
+    // When the account was made. Empty for accounts that existed before this field was added.
+
     // The ONE resume on the profile. Applications keep pointing at the file they applied with.
     private String resumeFileName;
     private String resumeStoredName;
@@ -87,6 +91,9 @@ public class User {
     public String getGoogleSub() { return googleSub; }
     public void setGoogleSub(String googleSub) { this.googleSub = googleSub; }
     public boolean isEmailVerified() { return !Boolean.FALSE.equals(emailVerified); }
+
+    // "PLATFORM_ADMIN" for the platform owner, otherwise the normal role. Used for the token and the screens.
+    public String effectiveRole() { return PlatformAccess.roleOf(this); }
     public void requireEmailVerification() { this.emailVerified = false; }
     public void markEmailVerified() { this.emailVerified = true; }
 

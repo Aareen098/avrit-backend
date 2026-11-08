@@ -43,6 +43,12 @@ public class Company {
     @Column(nullable = false)
     private LocalDate createdAt;
 
+    // Billing plan: FREE, PRO or BUSINESS. null means FREE. Plain text, so adding plans never needs a database change.
+    private String planCode;
+
+    // null or false = active. true = blocked by the platform owner.
+    private Boolean suspended;
+
     protected Company() {
         // required by JPA
     }
@@ -67,6 +73,10 @@ public class Company {
     public int getShortlistThreshold() { return shortlistThreshold; }
     public boolean isShowExplanation() { return showExplanation; }
     public LocalDate getCreatedAt() { return createdAt; }
+    public String getPlanCode() { return planCode == null ? "FREE" : planCode; }
+    public boolean isSuspended() { return Boolean.TRUE.equals(suspended); }
+    public void setPlanCode(String planCode) { this.planCode = planCode; }
+    public void setSuspended(boolean suspended) { this.suspended = suspended; }
 
     public void setName(String name) { this.name = name; }
     public void setWebsite(String website) { this.website = website; }

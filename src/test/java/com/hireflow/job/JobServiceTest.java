@@ -80,7 +80,7 @@ class JobServiceTest {
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
         verify(jobs).findByIdAndCompany_Id(5L, 1L);
         verify(applications, never()).findWithoutResponse(any());
-        verify(emails, never()).send(anyString(), any());
+        verify(emails, never()).send(anyString(), any(), any());
     }
 
     @Test
@@ -115,8 +115,8 @@ class JobServiceTest {
         assertThat(unanswered.getStage()).isEqualTo(ApplicationStage.REJECTED);
         assertThat(unanswered.getRejectionReason()).isEqualTo(Application.JOB_CLOSED_REASON);
         assertThat(inProgress.getStage()).isEqualTo(ApplicationStage.SCREENING);
-        verify(emails, times(1)).send(eq("new@x.com"), any());
-        verify(emails, times(1)).send(anyString(), any());
+        verify(emails).send(eq("new@x.com"), any(), any());
+        verify(emails, times(1)).send(anyString(), any(), any());
         verify(notifications).toEmail(eq("new@x.com"), eq("JOB_CLOSED"), any(), any(), any());
     }
 

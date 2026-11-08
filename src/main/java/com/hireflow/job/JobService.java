@@ -93,7 +93,7 @@ public class JobService {
                     a.setRejectionReason(Application.JOB_CLOSED_REASON);
                     a.setRejectionNote(null);
                     emails.send(a.getEmail(), EmailTemplates.jobClosed(a.getName(), job.getTitle(),
-                            job.getCompany().getName()));
+                            job.getCompany().getName()), job.getCompany().getId());
                     notifications.toEmail(a.getEmail(), "JOB_CLOSED", "This job has closed",
                             job.getTitle() + " was closed before they could respond.",
                             "/portal/applications/" + a.getReference());

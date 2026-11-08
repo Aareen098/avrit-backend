@@ -84,7 +84,7 @@ public class SettingsService {
                 encoder.encode(randomSecret()), req.role(), company));
         String secret = tokens.issue(user, Duration.ofDays(7));
         emails.send(email, EmailTemplates.invite(company.getName(), roleLabel(req.role()),
-                frontendUrl + "/reset-password?invite=1&token=" + secret));
+                frontendUrl + "/reset-password?invite=1&token=" + secret), company.getId());
         return team();
     }
 

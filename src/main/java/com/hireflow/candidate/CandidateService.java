@@ -74,7 +74,7 @@ public class CandidateService {
         if (before != req.stage()) notifyCandidate(a);
         if (newlyRejected) {
             emails.send(a.getEmail(), EmailTemplates.rejected(a.getName(), a.getJob().getTitle(),
-                    a.getJob().getCompany().getName()));
+                    a.getJob().getCompany().getName()), a.getJob().getCompany().getId());
         }
         return toDto(a, false);
     }

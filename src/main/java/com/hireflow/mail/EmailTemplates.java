@@ -70,6 +70,15 @@ public final class EmailTemplates {
                 null, null, null));
     }
 
+    // A message the platform owner wrote. The text is escaped and line breaks are kept.
+    public static Mail announcement(String subject, String message) {
+        return new Mail(subject, page(
+                subject,
+                "<p>" + esc(message).replace("\n", "<br>") + "</p>",
+                null, null,
+                "You are receiving this because you have an Avrit account."));
+    }
+
     // ---- layout ----
 
     private static String page(String title, String bodyHtml, String button, String link, String footer) {

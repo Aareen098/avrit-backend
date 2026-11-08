@@ -27,7 +27,7 @@ public class JwtService {
         Date now = new Date();
         var builder = Jwts.builder()
                 .subject(user.getEmail())
-                .claim("role", user.getRole().name());
+                .claim("role", user.effectiveRole());
         // Candidates have no company.
         if (user.getCompany() != null) builder.claim("companyId", user.getCompany().getId());
         return builder

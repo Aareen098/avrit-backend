@@ -3,12 +3,13 @@ package com.hireflow.ai;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hireflow.usage.UsageKind;
+import com.hireflow.usage.UsageService;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Component;
 
 // Talks to ANY OpenAI-compatible "chat completions" API (NVIDIA, OpenAI, Groq, OpenRouter, Ollama...).
 // Which one is decided only by the three values in .env, so switching provider needs no code change.
+// Every successful call is measured (tokens) and attributed to a company, so the platform owner can see
+// how much of the AI each company uses. Only numbers are stored, never the prompt or the answer.
 @Component
 public class LlmClient {
 
@@ -25,13 +28,16 @@ public class LlmClient {
     private final String baseUrl;
     private final String apiKey;
     private final String model;
+    private final UsageService usage;
 
     public LlmClient(@Value("${app.llm.base-url}") String baseUrl,
                      @Value("${app.llm.api-key}") String apiKey,
-                     @Value("${app.llm.model}") String model) {
+                     @Value("${app.llm.model}") String model,
+                     UsageService usage) {
         this.baseUrl = baseUrl.replaceAll("/+$", "");
         this.apiKey = apiKey.trim();
         this.model = model.trim();
+        this.usage = usage;
     }
 
     // False until LLM_API_KEY and LLM_MODEL are set in .env.
@@ -39,9 +45,18 @@ public class LlmClient {
         return !apiKey.isEmpty() && !model.isEmpty();
     }
 
-    // Same as chat(), but the answer must be one JSON object. Ignores <think> notes and ```json fences.
+    // Candidate-side AI uses these two: the use belongs to no company.
+    public String chat(String system, String user) {
+        return chat(system, user, null, UsageKind.LLM_CANDIDATE);
+    }
+
     public JsonNode chatJson(String system, String user) {
-        String text = chat(system, user).replaceAll("(?s)<think>.*?</think>", "");
+        return chatJson(system, user, null, UsageKind.LLM_CANDIDATE);
+    }
+
+    // Same as chat(), but the answer must be one JSON object. Ignores <think> notes and ```json fences.
+    public JsonNode chatJson(String system, String user, Long companyId, String usageKind) {
+        String text = chat(system, user, companyId, usageKind).replaceAll("(?s)<think>.*?</think>", "");
         int start = text.indexOf('{');
         int end = text.lastIndexOf('}');
         if (start < 0 || end <= start) throw new IllegalStateException("The AI answer could not be read");
@@ -54,17 +69,17 @@ public class LlmClient {
 
     // Sends one system + one user message and returns the text of the answer.
     // Throws IllegalStateException with a short readable message on any failure.
-    public String chat(String system, String user) {
+    public String chat(String system, String user, Long companyId, String usageKind) {
         try {
             String body = mapper.writeValueAsString(Map.of(
                     "model", model,
                     "temperature", 0.2,
-                    "max_tokens", 4000,
+                    "max_tokens", 3000,
                     "messages", List.of(
                             Map.of("role", "system", "content", system),
                             Map.of("role", "user", "content", user))));
             HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/chat/completions"))
-                    .timeout(Duration.ofSeconds(180))
+                    .timeout(Duration.ofSeconds(90))
                     .header("Authorization", "Bearer " + apiKey)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -73,14 +88,18 @@ public class LlmClient {
             if (response.statusCode() / 100 != 2) {
                 throw new IllegalStateException("The AI service answered with status " + response.statusCode());
             }
-            JsonNode text = mapper.readTree(response.body()).path("choices").path(0).path("message").path("content");
+            JsonNode tree = mapper.readTree(response.body());
+            JsonNode text = tree.path("choices").path(0).path("message").path("content");
             if (text.asText().isBlank()) throw new IllegalStateException("The AI service sent an empty answer");
+
+            // Providers report the tokens used; if one does not, estimate (about 4 characters per token).
+            long tokens = tree.path("usage").path("total_tokens").asLong(0);
+            if (tokens <= 0) tokens = (body.length() + text.asText().length()) / 4;
+            usage.record(companyId, usageKind, tokens);
             return text.asText();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("The AI request was interrupted");
-        } catch (HttpTimeoutException e) {
-            throw new IllegalStateException("The AI service took too long to answer. Try again, or use a faster model");
         } catch (IOException e) {
             throw new IllegalStateException("Could not reach the AI service: " + e.getMessage());
         }

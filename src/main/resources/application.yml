@@ -36,11 +36,16 @@ app:
     api-key: ${BREVO_API_KEY:}
     from-email: ${MAIL_FROM:}
     from-name: ${MAIL_FROM_NAME:Avrit}
+    daily-limit: ${MAIL_DAILY_LIMIT:300}
   google:
     # "Web application" OAuth client ID from Google Cloud. Sign in with Google stays off until it is set.
     client-id: ${GOOGLE_CLIENT_ID:}
   cors:
     allowed-origin: ${CORS_ORIGIN:http://localhost:5173}
+  platform:
+    # The ONE email that becomes the platform owner (it must be verified: Google sign-in or email link).
+    # Leave empty to switch the platform owner area off.
+    master-email: ${MASTER_ADMIN_EMAIL:}
   llm:
       # Any OpenAI-compatible API. Defaults are for NVIDIA (free key from build.nvidia.com).
       # AI analysis stays off until LLM_API_KEY and LLM_MODEL are set in .env.

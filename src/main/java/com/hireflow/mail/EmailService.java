@@ -1,6 +1,8 @@
 package com.hireflow.mail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hireflow.usage.UsageKind;
+import com.hireflow.usage.UsageService;
 import jakarta.annotation.PreDestroy;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -36,33 +38,36 @@ public class EmailService {
     private final String apiKey;
     private final String fromEmail;
     private final String fromName;
+    private final UsageService usage;
 
     public EmailService(@Value("${app.mail.api-key:}") String apiKey,
                         @Value("${app.mail.from-email:}") String fromEmail,
-                        @Value("${app.mail.from-name:Avrit}") String fromName) {
+                        @Value("${app.mail.from-name:Avrit}") String fromName,
+                        UsageService usage) {
+        this.usage = usage;
         this.apiKey = apiKey.trim();
         this.fromEmail = fromEmail.trim();
         this.fromName = fromName.trim();
     }
 
-    public void send(String to, Mail mail) {
+    // An email that belongs to no company (sign-in link, password reset, owner broadcast).
+    public void send(String to, Mail mail) { send(to, mail, null); }
+
+    // An email caused by a company (interview, rejection, job closed, team invite).
+    // companyId is only used to count the email in that company's usage.
+    public void send(String to, Mail mail, Long companyId) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    queue(to, mail);
-                }
+                @Override public void afterCommit() { queue(to, mail, companyId); }
             });
         } else {
-            queue(to, mail);
+            queue(to, mail, companyId);
         }
     }
 
-    private void queue(String to, Mail mail) {
-        pool.submit(() -> deliver(to, mail));
-    }
+    private void queue(String to, Mail mail, Long companyId) { pool.submit(() -> deliver(to, mail, companyId)); }
 
-    private void deliver(String to, Mail mail) {
+    private void deliver(String to, Mail mail, Long companyId) {
         if (apiKey.isEmpty() || fromEmail.isEmpty()) {
             Matcher m = LINK.matcher(mail.html());
             log.info("Email is not configured, so it was NOT sent. To: {} | Subject: {} | Link: {}",
@@ -85,6 +90,8 @@ public class EmailService {
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 300) {
                 log.warn("Email to {} failed with status {}: {}", to, response.statusCode(), response.body());
+            } else {
+                usage.record(companyId, UsageKind.EMAIL, 1);   // counted for the company (if any) and the platform owner
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

@@ -152,6 +152,9 @@ public class AuthService {
     }
 
     private AuthResponse toResponse(User user) {
+        if (user.getCompany() != null && user.getCompany().isSuspended()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "This company account is suspended. Please contact support.");
+        }
         return new AuthResponse(jwt.generate(user), UserDto.from(user));
     }
 }
