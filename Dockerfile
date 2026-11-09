@@ -1,16 +1,23 @@
-# Stage 1: build the jar
-FROM maven:3.9-eclipse-temurin-21 AS build
+# ---- Stage 1: build the jar ----
+FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
-COPY pom.xml .
-RUN mvn -B -ntp dependency:go-offline
-COPY src ./src
-RUN mvn -B -ntp -DskipTests package
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+# Windows line endings would break ./mvnw on Linux
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
+RUN ./mvnw -q dependency:go-offline
+COPY src src
+RUN ./mvnw -q -DskipTests package
 
-# Stage 2: small image that only runs it
+# ---- Stage 2: small runtime image ----
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+RUN useradd -r -u 1001 app
 COPY --from=build /app/target/*.jar app.jar
-# Keep memory small: free hosts give about 512 MB
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=70 -XX:+UseSerialGC"
+USER app
 EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
+# use at most 70% of the container's memory, and a light garbage collector
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:+UseSerialGC"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+  CMD curl -fsS http://localhost:8080/api/public/health || exit 1
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
